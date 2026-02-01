@@ -45,6 +45,7 @@ function ProgressDashboard({ appState, setAppState }) {
         pump: session.pump
     }));
 
+    const totalSessions = logs.length;
     const currentMesoData = PROGRAM_DATA.mesos.find(m => m.id === appState.meso);
     const progressPercent = Math.min(Math.round((totalSessions / 104) * 100), 100);
 

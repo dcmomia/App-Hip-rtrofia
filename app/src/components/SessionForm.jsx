@@ -226,6 +226,22 @@ const SessionForm = ({ appState, setAppState }) => {
                     <p>Semana {appState.week}</p>
                 </div>
                 <h3>Seleccionar Sesión</h3>
+
+                <div className="meso-selector-inline glass">
+                    <p>Cambiar Mesociclo:</p>
+                    <div className="meso-grid">
+                        {PROGRAM_DATA.mesos.map(m => (
+                            <button
+                                key={m.id}
+                                className={`meso-btn ${appState.meso === m.id ? 'active' : ''}`}
+                                onClick={() => setAppState({ meso: m.id, week: m.weeks[0] })}
+                            >
+                                M{m.id}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 <div className="session-buttons">
                     {availableSessions.map(s => (
                         <button

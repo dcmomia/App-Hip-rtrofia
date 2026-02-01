@@ -32,8 +32,9 @@ Bloques de entrenamiento basados en los principios científicos de **Mike Israet
 ## 3. Ecosistema de Datos e Infraestructura (v2.0)
 
 ### A. La Aplicación (PWA + Cloud)
-- **URL Producción:** [https://quiet-manatee-cc7eca.netlify.app](https://quiet-manatee-cc7eca.netlify.app)
-- **Tecnología:** React + Vite + PWA + React Router.
+- **URL Producción:** [https://dcmomia.github.io/App-Hip-rtrofia/](https://dcmomia.github.io/App-Hip-rtrofia/)
+- **Repository:** [https://github.com/dcmomia/App-Hip-rtrofia](https://github.com/dcmomia/App-Hip-rtrofia)
+- **Tecnología:** React + Vite + PWA + React Router + GitHub Pages.
 - **Backend:** Supabase (PostgreSQL + Auth).
 - **Seguridad:** Acceso protegido por Login/Password. Sesiones de usuario privadas.
 - **Analítica Avanzada (`Recharts`):**
@@ -92,6 +93,20 @@ Cuando el usuario abra una nueva conversación:
 - **Atomic-ish Sync:** Validación de datos antes de subir a la nube y rollback local en caso de fallo de red.
 - **UX Feedback:** Mensajes de error detallados y alertas obligatorias de validación (Soreness/Pump).
 
+### [v2.4.0] - 01 de Febrero de 2026
+**GitHub Migration & CI/CD Deployment**
+- **Repository Launch:** Proyecto conectado exitosamente a GitHub (`App-Hip-rtrofia`).
+- **DevOps Pipeline:** Configuración de GitHub Actions para despliegue automático mediante `JamesIves/github-pages-deploy-action`.
+- **Infrastructure:** Configuración de `.gitignore` optimizado para excluir `node_modules` y binarios.
+- **Access Control:** Reparación de permisos de escritura en el flujo de trabajo de despliegue.
+
+### [v2.5.0] - 01 de Febrero de 2026
+**Mesocycle Sync & UI Polish**
+- **Unified Meso Selection:** Added mesocycle selector dots (M1-M5) to the Registry view, allowing on-the-fly switching.
+- **Descriptive Metadata:** Dashboard now displays full mesocycle names (e.g., "Acumulación II") in both stats and selection headers.
+- **UI Architecture:** Improved component state synchronization to handle dynamic session list updates.
+- **Skill Alignment:** Implementation guided by `@proyecto` CONTINUUM protocol.
+
 ---
-*Documento actualizado con Parche de Integridad. Última revisión: 01 de Febrero de 2026 (08:45).*
+*Documento actualizado con Sincronización de Mesociclos. Última revisión: 01 de Febrero de 2026 (10:00).*
 

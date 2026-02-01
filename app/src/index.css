@@ -94,10 +94,42 @@ h1 {
     box-shadow: 0 0 10px var(--accent-glow);
 }
 
-.current-meso-name {
-    font-size: 0.9rem;
+.meso-header-ui {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.meso-header-ui .title-group {
+    text-align: left;
+}
+
+.meso-header-ui h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: var(--text-primary);
+}
+
+.meso-name-subtitle {
+    margin: 4px 0 0 0;
+    font-size: 0.85rem;
     color: var(--accent-color);
-    font-weight: 500;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.meso-selector-inline {
+    padding: 1rem;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.meso-selector-inline p {
+    margin: 0 0 1rem 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 1px;
 }

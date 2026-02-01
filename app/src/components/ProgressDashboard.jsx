@@ -45,12 +45,12 @@ function ProgressDashboard({ appState, setAppState }) {
         pump: session.pump
     }));
 
-    const totalSessions = logs.length;
+    const currentMesoData = PROGRAM_DATA.mesos.find(m => m.id === appState.meso);
     const progressPercent = Math.min(Math.round((totalSessions / 104) * 100), 100);
 
     const stats = [
         { label: 'Sesiones', value: `${totalSessions}/104` },
-        { label: 'Meso Activo', value: appState.meso },
+        { label: 'Meso Activo', value: currentMesoData?.name || `Meso ${appState.meso}` },
         { label: 'Semana', value: appState.week },
         { label: 'Progreso', value: `${progressPercent}%`, color: 'var(--accent-color)' }
     ];
@@ -61,7 +61,10 @@ function ProgressDashboard({ appState, setAppState }) {
         <div className="dashboard">
             <div className="meso-selector-panel glass">
                 <header className="meso-header-ui">
-                    <h3>Control de Ciclo</h3>
+                    <div className="title-group">
+                        <h3>Control de Ciclo</h3>
+                        <p className="meso-name-subtitle">{currentMesoData?.name}</p>
+                    </div>
                     <div className="badge">Meso {appState.meso} | Sem {appState.week}</div>
                 </header>
                 <div className="meso-grid">

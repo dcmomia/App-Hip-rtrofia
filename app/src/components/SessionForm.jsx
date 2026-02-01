@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { calculateNextLoad, calculateVolumeAdjust, getRealTimeRecommendation } from '../logic/IsraetelEngine';
+import { calculateNextLoad, calculateVolumeAdjust, getRealTimeRecommendation, detectDeloadNeeded } from '../logic/IsraetelEngine';
 import { PROGRAM_DATA } from '../data/programData';
 import { getSessionDraft, saveSessionDraft } from '../logic/Storage'; // Keep drafts local for safety
 import { SupabaseService } from '../logic/SupabaseService';
@@ -49,10 +49,17 @@ const SessionForm = ({ appState, setAppState }) => {
 
         const fetchFeedback = async () => {
             try {
+                // Try to process any pending sync items first
+                await SupabaseService.processSyncQueue();
+
                 const logs = await SupabaseService.getSessionLogs();
                 const lastSameSession = logs.find(l => l.session_name === selectedSession.name);
+
+                // Volume Recommendation based on trends
                 if (lastSameSession) {
-                    const adjust = calculateVolumeAdjust(lastSameSession.soreness, lastSameSession.pump);
+                    const sameSessions = logs.filter(l => l.session_name === selectedSession.name).slice(0, 3);
+                    const adjust = calculateVolumeAdjust(lastSameSession.soreness, lastSameSession.pump, sameSessions);
+
                     if (adjust !== 0) {
                         setVolumeRecommendation({
                             type: adjust > 0 ? 'INCREASE' : 'DECREASE',
@@ -60,6 +67,15 @@ const SessionForm = ({ appState, setAppState }) => {
                         });
                     } else {
                         setVolumeRecommendation(null);
+                    }
+
+                    // Deload Detection
+                    const deload = detectDeloadNeeded(logs.slice(0, 5));
+                    if (deload) {
+                        setVolumeRecommendation(prev => ({
+                            type: 'DECREASE',
+                            msg: deload.message
+                        }));
                     }
                 }
             } catch (e) { console.error("Error fetching recs", e); }

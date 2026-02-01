@@ -33,12 +33,12 @@ class ErrorBoundary extends React.Component {
 }
 
 // Layout component to handle Navigation
-const AppLayout = ({ children, setView }) => {
+const AppLayout = ({ children, setView, meso }) => {
     const { signOut } = useAuth();
     const location = useLocation();
 
     return (
-        <div className="app-container">
+        <div className="app-container" data-meso={meso}>
             <header className="app-header">
                 <div className="header-top">
                     <h1>HYPERTROPHY-X</h1>
@@ -93,7 +93,7 @@ function App() {
 
                         <Route path="/" element={
                             <ProtectedRoute>
-                                <AppLayout>
+                                <AppLayout meso={appState.meso}>
                                     <ProgressDashboard
                                         appState={appState}
                                         setAppState={handleUpdateState}
@@ -104,7 +104,7 @@ function App() {
 
                         <Route path="/registro" element={
                             <ProtectedRoute>
-                                <AppLayout>
+                                <AppLayout meso={appState.meso}>
                                     <SessionForm
                                         appState={appState}
                                         setAppState={handleUpdateState}
@@ -114,7 +114,7 @@ function App() {
                         } />
                         <Route path="/plan" element={
                             <ProtectedRoute>
-                                <AppLayout>
+                                <AppLayout meso={appState.meso}>
                                     <MacroCycleView
                                         appState={appState}
                                         setAppState={handleUpdateState}

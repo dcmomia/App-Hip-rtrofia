@@ -47,16 +47,40 @@ export const calculateNextLoad = (setsData, targetRepsRange, targetRIR) => {
     }
     return 0;
 };
-export const calculateVolumeAdjust = (soreness, pump) => {
+export const calculateVolumeAdjust = (soreness, pump, history = []) => {
     /**
      * Logic:
      * - Soreness 0-1 & Pump 4-5 -> +1 Series (Hypertrophy stimulus under-recovered)
      * - Soreness 2-3 -> Maintain (Sweet spot)
      * - Soreness 4-5 -> -1 Series (Overreaching)
      */
-    if (soreness <= 1 && pump >= 4) return 1;
-    if (soreness >= 4) return -1;
-    return 0;
+    let baseAdjust = 0;
+    if (soreness <= 1 && pump >= 4) baseAdjust = 1;
+    else if (soreness >= 4) baseAdjust = -1;
+
+    // Trend analysis (Last 3 sessions)
+    if (history.length >= 3) {
+        const avgSoreness = history.reduce((acc, l) => acc + l.soreness, 0) / history.length;
+        const avgPump = history.reduce((acc, l) => acc + l.pump, 0) / history.length;
+
+        // If high fatigue persists, force maintain or decrease
+        if (avgSoreness >= 3.5 && baseAdjust > 0) baseAdjust = 0;
+    }
+
+    return baseAdjust;
+};
+
+/**
+ * Detects if a deload week is needed.
+ * Trigger: 3 consecutive sessions of high soreness (>= 4) or tanking performance.
+ */
+export const detectDeloadNeeded = (history = []) => {
+    if (history.length < 3) return false;
+
+    const highSorenessStreak = history.slice(0, 3).every(l => l.soreness >= 4);
+    if (highSorenessStreak) return { reason: 'CONSECUTIVE_FATIGUE', message: '⚠️ Fatiga crónica detectada (3+ sesiones con agujetas altas). Se recomienda semana de DESCARGA.' };
+
+    return null;
 };
 
 export const calculateE1RM = (weight, reps, rir) => {
@@ -73,3 +97,4 @@ export const calculateE1RM = (weight, reps, rir) => {
 export const calculateTonnage = (setsData) => {
     return setsData.reduce((acc, set) => acc + (parseFloat(set.weight) * parseInt(set.reps)), 0);
 };
+

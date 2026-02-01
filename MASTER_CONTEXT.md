@@ -100,13 +100,14 @@ Cuando el usuario abra una nueva conversación:
 - **Infrastructure:** Configuración de `.gitignore` optimizado para excluir `node_modules` y binarios.
 - **Access Control:** Reparación de permisos de escritura en el flujo de trabajo de despliegue.
 
-### [v2.5.0] - 01 de Febrero de 2026
-**Mesocycle Sync & UI Polish**
-- **Unified Meso Selection:** Added mesocycle selector dots (M1-M5) to the Registry view, allowing on-the-fly switching.
-- **Descriptive Metadata:** Dashboard now displays full mesocycle names (e.g., "Acumulación II") in both stats and selection headers.
-- **UI Architecture:** Improved component state synchronization to handle dynamic session list updates.
-- **Skill Alignment:** Implementation guided by `@proyecto` CONTINUUM protocol.
+### [v2.6.0] - 01 de Febrero de 2026
+**Robustez Técnica e Inteligencia Adaptativa (Elite Audit)**
+- **Sync Reliability:** Implementación de `LocalSyncQueue` en `SupabaseService` para gestión de fallos de red y reintentos automáticos.
+- **Israetel Engine v2:** Lógica avanzada de volumen basada en tendencias de 3 sesiones y detección proactiva de semanas de descarga (deload).
+- **Dynamic Identity:** Sistema de personalización visual por mesociclo mediante atributos `data-meso`, permitiendo una identidad visual única para cada fase.
+- **UX Polish:** Refactorización de componentes para asegurar una carga de datos atómica y feedback visual instantáneo.
 
 ---
-*Documento actualizado con Sincronización de Mesociclos. Última revisión: 01 de Febrero de 2026 (10:00).*
+*Documento actualizado con Mejoras de Auditoría (v2.6.0). Última revisión: 01 de Febrero de 2026 (10:15).*
+
 

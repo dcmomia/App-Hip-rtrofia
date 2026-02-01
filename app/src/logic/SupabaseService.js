@@ -9,14 +9,14 @@ const getUserId = async () => {
 
 export const SupabaseService = {
     /**
-     * Sincroniza el log de una sesión finalizada.
+     * Sincroniza el log de una sesión. 
+     * Implementa lógica de "Atomic-ish" con guardado local persistente si falla.
      */
     async saveSessionLog(log) {
         try {
             const userId = await getUserId();
             if (!userId) throw new Error("Sesión expirada. Por favor, vuelve a iniciar sesión.");
 
-            // Validation: Ensure we have data
             if (!log.data || Object.keys(log.data).length === 0) {
                 throw new Error("No hay datos de entrenamiento para guardar.");
             }
@@ -36,19 +36,14 @@ export const SupabaseService = {
                 .select()
                 .single();
 
-            if (sessionError) {
-                console.error("Supabase Session Error:", sessionError);
-                throw new Error(`Error al crear sesión: ${sessionError.message}`);
-            }
+            if (sessionError) throw sessionError;
 
-            // 2. Prepare Sets Data
+            // 2. Prepare Sets
             const sessionId = sessionData.id;
             const flatSets = [];
 
             Object.keys(log.data).forEach(exerciseId => {
-                const sets = log.data[exerciseId];
-                sets.forEach((set, index) => {
-                    // Only push sets that have at least one value to keep DB clean
+                log.data[exerciseId].forEach((set, index) => {
                     if (set.weight !== '' || set.reps !== '') {
                         flatSets.push({
                             session_id: sessionId,
@@ -64,7 +59,8 @@ export const SupabaseService = {
             });
 
             if (flatSets.length === 0) {
-                throw new Error("No se detectaron series válidas (vacías).");
+                await supabase.from('sessions').delete().eq('id', sessionId);
+                throw new Error("No se detectaron series válidas.");
             }
 
             // 3. Insert Sets
@@ -73,42 +69,70 @@ export const SupabaseService = {
                 .insert(flatSets);
 
             if (setsError) {
-                console.error("Supabase Sets Error:", setsError);
-                // Attempt to delete the dangling session if sets fail (Atomic-ish)
                 await supabase.from('sessions').delete().eq('id', sessionId);
-                throw new Error(`Error al guardar series: ${setsError.message}`);
+                throw setsError;
             }
 
             return sessionData;
         } catch (err) {
-            console.error("Critical Sync Failure:", err);
-            throw err; // Re-throw to be caught by UI
+            console.error("Supabase Sync Failed. Fallback to LocalQueue triggered.", err);
+            // PERSISTENCE GUARD: Si falla la nube, guardamos en una cola local de reintento
+            this.queueForRetry(log);
+            throw new Error(`Fallo de conexión: Los datos se han guardado localmente y se sincronizarán pronto.`);
         }
     },
 
     /**
-     * Obtiene el historial de sesiones con manejo de errores robusto.
+     * Guarda el log en una cola local de reintento.
+     */
+    queueForRetry(log) {
+        const queue = JSON.parse(localStorage.getItem('hx_sync_queue') || '[]');
+        queue.push({ ...log, timestamp: Date.now(), retryCount: 0 });
+        localStorage.setItem('hx_sync_queue', JSON.stringify(queue));
+    },
+
+    /**
+     * Intenta sincronizar datos pendientes en la cola.
+     */
+    async processSyncQueue() {
+        const queue = JSON.parse(localStorage.getItem('hx_sync_queue') || '[]');
+        if (queue.length === 0) return;
+
+        console.log(`HX-System: Attempting to sync ${queue.length} pending sessions...`);
+        const remainingQueue = [];
+
+        for (const log of queue) {
+            try {
+                await this.saveSessionLog(log);
+                console.log(`HX-System: Successfully synced session: ${log.sessionName}`);
+            } catch (e) {
+                if (log.retryCount < 5) {
+                    remainingQueue.push({ ...log, retryCount: log.retryCount + 1 });
+                }
+            }
+        }
+        localStorage.setItem('hx_sync_queue', JSON.stringify(remainingQueue));
+    },
+
+    /**
+     * Obtiene el historial de sesiones.
      */
     async getSessionLogs() {
         try {
             const { data, error } = await supabase
                 .from('sessions')
-                .select(`
-                    *,
-                    sets (*)
-                `)
+                .select('*, sets (*)')
                 .order('date', { ascending: false });
 
             if (error) throw error;
             return data || [];
         } catch (err) {
-            console.error("Fetch Logs Error:", err);
-            throw new Error("No se pudo conectar con la base de datos para obtener el historial.");
+            throw new Error("Error al obtener historial.");
         }
     },
 
     /**
-     * Obtiene el último rendimiento de un ejercicio específico.
+     * Obtiene el último rendimiento de un ejercicio.
      */
     async getLastExercisePerformance(exerciseName) {
         try {
@@ -117,26 +141,17 @@ export const SupabaseService = {
 
             const { data, error } = await supabase
                 .from('sets')
-                .select(`
-                    weight,
-                    reps,
-                    rir,
-                    sessions!inner(user_id, date)
-                `)
+                .select('weight, reps, rir, sessions!inner(user_id, date)')
                 .eq('exercise_name', exerciseName)
                 .eq('sessions.user_id', userId)
                 .order('sessions(date)', { ascending: false })
                 .limit(1);
 
-            if (error) {
-                console.warn(`History fetch failed for ${exerciseName}:`, error.message);
-                return null; // Don't crash the UI for history fails
-            }
-
-            return data && data.length > 0 ? data[0] : null;
+            return data?.[0] || null;
         } catch (err) {
             return null;
         }
     }
 };
+
 

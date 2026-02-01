@@ -1,0 +1,12 @@
+node_modules/
+.npm/
+dist/
+.netlify/
+.cache/
+*.log
+.env
+.DS_Store
+app/node_modules/
+app_backup/node_modules/
+app/dist/
+app_backup/dist/

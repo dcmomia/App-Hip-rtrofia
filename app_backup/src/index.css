@@ -1,0 +1,310 @@
+:root {
+    --bg-color: #0c0c0e;
+    --surface-color: rgba(255, 255, 255, 0.03);
+    --accent-color: #00d4ff;
+    --accent-glow: rgba(0, 212, 255, 0.4);
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0a0;
+    --danger: #ff4d4d;
+    --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    min-height: 100vh;
+    padding: 1rem;
+}
+
+.app-container {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.app-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+h1 {
+    font-size: 2.5rem;
+    letter-spacing: -1px;
+    background: linear-gradient(180deg, #fff 0%, #777 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.meso-selector-panel {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.meso-grid {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+.meso-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    padding: 0.5rem 0.8rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.meso-btn.active {
+    background: var(--accent-color);
+    color: #000;
+    font-weight: bold;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.current-meso-name {
+    font-size: 0.9rem;
+    color: var(--accent-color);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.glass {
+    background: var(--surface-color);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.exercise-card h3 {
+    color: var(--accent-color);
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.target {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.input-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.input-grid label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 0.6rem;
+    color: #fff;
+    font-size: 1rem;
+    width: 100%;
+}
+
+input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.btn-primary,
+.btn-submit {
+    width: 100%;
+    padding: 1rem;
+    background: var(--accent-color);
+    border: none;
+    border-radius: 12px;
+    color: #000;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 1rem;
+}
+
+.btn-primary:active,
+.btn-submit:active {
+    transform: scale(0.98);
+    filter: brightness(0.8);
+}
+
+.btn-back {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    margin-bottom: 1rem;
+}
+
+.slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+input[type="range"] {
+    accent-color: var(--accent-color);
+}
+
+/* Session Selector */
+.meso-info {
+    margin-bottom: 2rem;
+    padding: 2rem;
+    text-align: center;
+}
+
+.session-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Session Form */
+.session-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.badge {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    color: var(--accent-color);
+}
+
+.ex-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+.target-badge {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+}
+
+.sets-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.set-row {
+    display: grid;
+    grid-template-columns: 30px 1fr 1fr 1fr;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.set-num {
+    font-size: 0.8rem;
+    color: var(--accent-color);
+    font-weight: bold;
+}
+
+.val {
+    color: var(--accent-color);
+    font-weight: bold;
+    margin-left: 0.5rem;
+}
+
+.main-nav {
+    display: flex;
+    gap: 1rem;
+    padding: 0.5rem;
+    margin-top: 1rem;
+    justify-content: center;
+}
+
+.main-nav button {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.main-nav button.active {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--accent-color);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.stat-card .label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.stat-card .value {
+    font-size: 1.4rem;
+    font-weight: 800;
+}
+
+.mock-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    height: 100px;
+    margin-top: 1rem;
+    padding: 10px;
+}
+
+.mock-chart .bar {
+    flex: 1;
+    background: var(--accent-color);
+    opacity: 0.3;
+    border-radius: 4px 4px 0 0;
+    transition: opacity 0.3s;
+}
+
+.mock-chart .bar:last-child {
+    opacity: 1;
+    box-shadow: 0 0 15px var(--accent-glow);
+}

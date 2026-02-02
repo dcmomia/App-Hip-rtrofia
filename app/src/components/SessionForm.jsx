@@ -117,29 +117,63 @@ const SessionForm = ({ appState, setAppState }) => {
     const currentMeso = PROGRAM_DATA.mesos.find(m => m.id === appState.meso);
     const availableSessions = currentMeso ? currentMeso.sessions : [];
 
-    const handleSelectSession = (s) => {
+    const handleSelectSession = async (s) => {
         const draft = getSessionDraft(s.id);
 
         let dataToSet = {};
         let metadataToSet = {};
         let feedbackToSet = { soreness: 0, pump: 0, fatigue: 3, notes: '' };
 
-        // Check for existing draft for THIS specific session
+        // Priority 1: Check for existing local draft (active work)
         if (draft && draft.meso === appState.meso && draft.week === appState.week) {
             console.log("HX-System: Draft match found for session", s.id);
             dataToSet = draft.data;
             metadataToSet = draft.metadata || {};
             feedbackToSet = draft.feedback || feedbackToSet;
         } else {
-            console.log("HX-System: Initializing new session data", s.id);
-            s.exercises.forEach(ex => {
-                dataToSet[ex.id] = Array.from({ length: ex.sets }, () => ({
-                    weight: '',
-                    reps: '',
-                    rir: ex.rir
-                }));
-                metadataToSet[ex.id] = { tempo_ok: false, sfr: 3 };
-            });
+            // Priority 2: Check Supabase for historical matched session
+            console.log("HX-System: Checking cloud for historical session data...");
+            const cloudSession = await SupabaseService.getSessionDetails(appState.meso, appState.week, s.name);
+
+            if (cloudSession && cloudSession.sets) {
+                console.log("HX-System: Historical data found in Cloud for", s.name);
+                // Map flat sets back to ex.id arrays
+                s.exercises.forEach(ex => {
+                    const exSets = cloudSession.sets.filter(set => set.exercise_name === ex.id)
+                        .sort((a, b) => a.set_order - b.set_order);
+
+                    if (exSets.length > 0) {
+                        dataToSet[ex.id] = exSets.map(set => ({
+                            weight: set.weight,
+                            reps: set.reps,
+                            rir: set.rir
+                        }));
+                    } else {
+                        // Fill with defaults if no sets found for this exercise in that session record
+                        dataToSet[ex.id] = Array.from({ length: ex.sets }, () => ({
+                            weight: '', reps: '', rir: ex.rir
+                        }));
+                    }
+                    metadataToSet[ex.id] = { tempo_ok: true, sfr: 3 }; // Assume tempo ok for passed session
+                });
+                feedbackToSet = {
+                    soreness: cloudSession.soreness,
+                    pump: cloudSession.pump,
+                    fatigue: 3,
+                    notes: cloudSession.notes
+                };
+            } else {
+                // Priority 3: Initialize new blank session
+                console.log("HX-System: Initializing new blank session data", s.id);
+                s.exercises.forEach(ex => {
+                    dataToSet[ex.id] = Array.from({ length: ex.sets }, () => ({
+                        weight: '',
+                        reps: '',
+                        rir: ex.rir
+                    }));
+                    metadataToSet[ex.id] = { tempo_ok: false, sfr: 3 };
+                });
+            }
         }
 
         setSessionData(dataToSet);

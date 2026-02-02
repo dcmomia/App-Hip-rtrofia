@@ -159,6 +159,35 @@ export const SupabaseService = {
     },
 
     /**
+     * Obtiene los detalles de una sesión específica por su ID/Nombre de programa.
+     * En nuestro caso, buscamos por meso, semana y nombre ya que sessionId del programa es estático.
+     */
+    async getSessionDetails(meso, week, sessionName) {
+        try {
+            const userId = await getUserId();
+            if (!userId) return null;
+
+            const { data, error } = await supabase
+                .from('sessions')
+                .select('*, sets (*)')
+                .eq('user_id', userId)
+                .eq('meso_cycle', meso)
+                .eq('week', week)
+                .eq('session_name', sessionName)
+                .single();
+
+            if (error) {
+                if (error.code === 'PGRST116') return null; // Not found is fine
+                throw error;
+            }
+            return data;
+        } catch (err) {
+            console.error("Error fetching session details:", err);
+            return null;
+        }
+    },
+
+    /**
      * Obtiene el historial de sesiones del usuario actual.
      */
     async getSessionLogs() {

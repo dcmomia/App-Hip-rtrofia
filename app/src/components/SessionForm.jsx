@@ -14,6 +14,7 @@ const SessionForm = ({ appState, setAppState }) => {
     const [exerciseHistory, setExerciseHistory] = useState({}); // last performance
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [volumeRecommendation, setVolumeRecommendation] = useState(null);
+    const [isEditMode, setIsEditMode] = useState(false); // Controls if inputs are locked
 
 
     const location = useLocation();
@@ -123,6 +124,7 @@ const SessionForm = ({ appState, setAppState }) => {
         let dataToSet = {};
         let metadataToSet = {};
         let feedbackToSet = { soreness: 0, pump: 0, fatigue: 3, notes: '' };
+        let editMode = false;
 
         // Priority 1: Check for existing local draft (active work)
         if (draft && draft.meso === appState.meso && draft.week === appState.week) {
@@ -130,12 +132,13 @@ const SessionForm = ({ appState, setAppState }) => {
             dataToSet = draft.data;
             metadataToSet = draft.metadata || {};
             feedbackToSet = draft.feedback || feedbackToSet;
+            editMode = true; // Still working on it
         } else {
             // Priority 2: Check Supabase for historical matched session
             console.log("HX-System: Checking cloud for historical session data...");
             const cloudSession = await SupabaseService.getSessionDetails(appState.meso, appState.week, s.name);
 
-            if (cloudSession && cloudSession.sets) {
+            if (cloudSession && cloudSession.sets && cloudSession.sets.length > 0) {
                 console.log("HX-System: Historical data found in Cloud for", s.name);
                 // Map flat sets back to ex.id arrays
                 s.exercises.forEach(ex => {
@@ -149,19 +152,19 @@ const SessionForm = ({ appState, setAppState }) => {
                             rir: set.rir
                         }));
                     } else {
-                        // Fill with defaults if no sets found for this exercise in that session record
                         dataToSet[ex.id] = Array.from({ length: ex.sets }, () => ({
                             weight: '', reps: '', rir: ex.rir
                         }));
                     }
-                    metadataToSet[ex.id] = { tempo_ok: true, sfr: 3 }; // Assume tempo ok for passed session
+                    metadataToSet[ex.id] = { tempo_ok: true, sfr: 3 };
                 });
                 feedbackToSet = {
                     soreness: cloudSession.soreness,
                     pump: cloudSession.pump,
                     fatigue: 3,
-                    notes: cloudSession.notes
+                    notes: cloudSession.notes || ''
                 };
+                editMode = false; // Start in read-only for historical data
             } else {
                 // Priority 3: Initialize new blank session
                 console.log("HX-System: Initializing new blank session data", s.id);
@@ -173,12 +176,14 @@ const SessionForm = ({ appState, setAppState }) => {
                     }));
                     metadataToSet[ex.id] = { tempo_ok: false, sfr: 3 };
                 });
+                editMode = true; // New session is editable by default
             }
         }
 
         setSessionData(dataToSet);
         setExerciseMetadata(metadataToSet);
         setPostSession(feedbackToSet);
+        setIsEditMode(editMode);
         setSelectedSession(s);
     };
 
@@ -331,8 +336,20 @@ const SessionForm = ({ appState, setAppState }) => {
     return (
         <form className="session-form" onSubmit={handleSubmit}>
             <header className="session-header">
-                <button type="button" onClick={() => setSelectedSession(null)} className="btn-back">← Atrás</button>
-                <h2>{selectedSession.name}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button type="button" onClick={() => setSelectedSession(null)} className="btn-back">←</button>
+                    <h2 style={{ margin: 0 }}>{selectedSession.name}</h2>
+                </div>
+                {!isEditMode && (
+                    <button
+                        type="button"
+                        onClick={() => setIsEditMode(true)}
+                        className="btn-sync-mini"
+                        style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                    >
+                        📝 Editar Sesión
+                    </button>
+                )}
                 <div className="badge">Semana {appState.week} • Meso {appState.meso}</div>
             </header>
 
@@ -345,7 +362,13 @@ const SessionForm = ({ appState, setAppState }) => {
                 </div>
             )}
 
-            <div className="exercise-list">
+            {!isEditMode && (
+                <div className="glass alert-info" style={{ marginBottom: '1rem', padding: '10px', fontSize: '0.9rem', color: 'var(--accent-color)' }}>
+                    ℹ️ Estás viendo el historial de esta sesión. Pulsa "Editar" para realizar cambios.
+                </div>
+            )}
+
+            <div className={`exercise-list ${!isEditMode ? 'read-only-view' : ''}`}>
                 {selectedSession.exercises.map(ex => (
                     <div key={ex.id} className="exercise-card glass">
                         <header className="ex-card-header">
@@ -370,21 +393,24 @@ const SessionForm = ({ appState, setAppState }) => {
                                         placeholder="kg"
                                         step="0.5"
                                         value={setData.weight}
+                                        disabled={!isEditMode}
                                         onChange={(e) => handleSetChange(ex.id, idx, 'weight', e.target.value)}
                                     />
                                     <input
                                         type="number"
                                         placeholder="reps"
                                         value={setData.reps}
+                                        disabled={!isEditMode}
                                         onChange={(e) => handleSetChange(ex.id, idx, 'reps', e.target.value)}
                                     />
                                     <input
                                         type="number"
                                         placeholder={`RIR ${ex.rir}`}
                                         value={setData.rir}
+                                        disabled={!isEditMode}
                                         onChange={(e) => handleSetChange(ex.id, idx, 'rir', e.target.value)}
                                     />
-                                    {getRealTimeRecommendation(setData.reps, setData.rir, ex.reps, ex.rir) && (
+                                    {isEditMode && getRealTimeRecommendation(setData.reps, setData.rir, ex.reps, ex.rir) && (
                                         <div className={`recommendation-overlay ${getRealTimeRecommendation(setData.reps, setData.rir, ex.reps, ex.rir).action.toLowerCase()}`}>
                                             {getRealTimeRecommendation(setData.reps, setData.rir, ex.reps, ex.rir).message}
                                         </div>
@@ -398,15 +424,17 @@ const SessionForm = ({ appState, setAppState }) => {
                                 <input
                                     type="checkbox"
                                     checked={exerciseMetadata[ex.id]?.tempo_ok || false}
+                                    disabled={!isEditMode}
                                     onChange={(e) => handleMetadataChange(ex.id, 'tempo_ok', e.target.checked)}
                                 />
                                 <span>Tempo (3s ecc) ✅</span>
                             </label>
-                            <label className="sfr-selector">
+                            <label className="sfr-selector" style={{ opacity: !isEditMode ? 0.6 : 1 }}>
                                 SFR:
                                 <input
                                     type="range" min="1" max="5" step="1"
                                     value={exerciseMetadata[ex.id]?.sfr || 3}
+                                    disabled={!isEditMode}
                                     onChange={(e) => handleMetadataChange(ex.id, 'sfr', parseInt(e.target.value))}
                                 />
                                 <span className="sfr-val">{exerciseMetadata[ex.id]?.sfr || 3}</span>
@@ -420,30 +448,33 @@ const SessionForm = ({ appState, setAppState }) => {
             <section className="post-session glass">
                 <h3>Diagnóstico de Recuperación</h3>
                 <div className="slider-group">
-                    <label>
+                    <label style={{ opacity: !isEditMode ? 0.6 : 1 }}>
                         Soreness (Agujetas) [1-5]: <span className="val">{postSession.soreness}</span>
                         <p className="field-desc">Valora tu recuperación <strong>antes</strong> de empezar: ¿Tenías dolor de la sesión anterior?</p>
                         <input
                             type="range" min="0" max="5"
                             value={postSession.soreness}
+                            disabled={!isEditMode}
                             onChange={(e) => handleFeedbackChange('soreness', parseInt(e.target.value))}
                         />
-                        <span className="helper-text">{postSession.soreness === 0 ? 'Selecciona valor' : ''}</span>
+                        <span className="helper-text">{postSession.soreness === 0 && isEditMode ? 'Selecciona valor' : ''}</span>
                     </label>
-                    <label>
+                    <label style={{ opacity: !isEditMode ? 0.6 : 1 }}>
                         Pump (Bombeo) [1-5]: <span className="val">{postSession.pump}</span>
                         <p className="field-desc">Valora la congestión <strong>ahora mismo</strong>: ¿Sientes el músculo hinchado?</p>
                         <input
                             type="range" min="0" max="5"
                             value={postSession.pump}
+                            disabled={!isEditMode}
                             onChange={(e) => handleFeedbackChange('pump', parseInt(e.target.value))}
                         />
-                        <span className="helper-text">{postSession.pump === 0 ? 'Selecciona valor' : ''}</span>
+                        <span className="helper-text">{postSession.pump === 0 && isEditMode ? 'Selecciona valor' : ''}</span>
                     </label>
                     <label>
                         Notas:
                         <textarea
                             value={postSession.notes}
+                            disabled={!isEditMode}
                             onChange={(e) => handleFeedbackChange('notes', e.target.value)}
                             placeholder="Molestias, energía, observaciones..."
                         />
@@ -451,13 +482,15 @@ const SessionForm = ({ appState, setAppState }) => {
                 </div>
             </section>
 
-            <button
-                type="submit"
-                className={`btn-submit ${!isSessionComplete() ? 'dimmed' : ''}`}
-                disabled={isSubmitting}
-            >
-                {isSubmitting ? 'Guardando...' : 'Finalizar Sesión'}
-            </button>
+            {isEditMode && (
+                <button
+                    type="submit"
+                    className={`btn-submit ${!isSessionComplete() ? 'dimmed' : ''}`}
+                    disabled={isSubmitting}
+                >
+                    {isSubmitting ? 'Guardando...' : 'Finalizar Sesión'}
+                </button>
+            )}
         </form>
     );
 }

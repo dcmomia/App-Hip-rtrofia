@@ -14,17 +14,31 @@ export const SupabaseService = {
      */
     async saveSessionLog(log) {
         try {
-            return await this._executeSave(log);
+            const res = await this._executeSave(log);
+            localStorage.removeItem('hx_last_sync_error');
+            return res;
         } catch (err) {
-            // AUTH CHECK: Si el error es de autenticación, NO encolamos, pedimos login
+            // AUTH CHECK: No encolamos fallos de auth
             if (err.message.includes("Sesión expirada") || err.status === 401) {
                 throw err;
             }
 
             console.error("Supabase Sync Failed. Fallback to LocalQueue triggered.", err);
-            // PERSISTENCE GUARD: Solo encolamos si es un fallo de red/servidor
-            this.queueForRetry(log);
-            throw new Error(`Fallo de conexión: Los datos se han guardado localmente y se sincronizarán pronto.`);
+
+            // DEDUPLICACIÓN: Comprobamos si ya está en la cola antes de añadirlo
+            const queue = JSON.parse(localStorage.getItem('hx_sync_queue') || '[]');
+            const exists = queue.some(item =>
+                item.sessionId === log.sessionId &&
+                item.meso === log.meso &&
+                item.week === log.week
+            );
+
+            if (!exists) {
+                this.queueForRetry(log);
+            }
+
+            localStorage.setItem('hx_last_sync_error', err.message);
+            throw new Error(`Sincronización pendiente: Los datos se han guardado localmente debido a: ${err.message}`);
         }
     },
 
@@ -112,20 +126,36 @@ export const SupabaseService = {
 
         console.log(`HX-System: Attempting to sync ${queue.length} pending sessions...`);
         const remainingQueue = [];
+        let lastError = null;
 
         for (const log of queue) {
             try {
-                // USAMOS _executeSave para no volver a encolar lo que ya está en cola si falla
                 await this._executeSave(log);
                 console.log(`HX-System: Successfully synced session: ${log.sessionName}`);
             } catch (e) {
                 console.warn(`HX-System: Sync failed for ${log.sessionName}. Reason:`, e.message);
-                if (log.retryCount < 5) {
+                lastError = e.message;
+                // Evitamos duplicados: solo lo re-encolamos si no ha fallado demasiadas veces
+                if ((log.retryCount || 0) < 5) {
                     remainingQueue.push({ ...log, retryCount: (log.retryCount || 0) + 1 });
                 }
             }
         }
+
         localStorage.setItem('hx_sync_queue', JSON.stringify(remainingQueue));
+        if (lastError) {
+            localStorage.setItem('hx_last_sync_error', lastError);
+        } else {
+            localStorage.removeItem('hx_last_sync_error');
+        }
+    },
+
+    /**
+     * Limpia la cola de sincronización.
+     */
+    clearSyncQueue() {
+        localStorage.removeItem('hx_sync_queue');
+        localStorage.removeItem('hx_last_sync_error');
     },
 
     /**

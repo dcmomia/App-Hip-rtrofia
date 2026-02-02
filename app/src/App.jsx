@@ -37,19 +37,21 @@ const SyncManager = () => {
     const { user } = useAuth();
     const [syncing, setSyncing] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
+    const [lastError, setLastError] = useState(null);
 
     const checkQueue = () => {
         const queue = JSON.parse(localStorage.getItem('hx_sync_queue') || '[]');
+        const error = localStorage.getItem('hx_last_sync_error');
         setPendingCount(queue.length);
+        setLastError(error);
     };
 
     useEffect(() => {
         checkQueue();
-        const interval = setInterval(checkQueue, 5000); // Polling local count is safe
+        const interval = setInterval(checkQueue, 5000);
         return () => clearInterval(interval);
     }, []);
 
-    // Also trigger on user change
     useEffect(() => {
         if (user && pendingCount > 0) {
             handleSync();
@@ -69,17 +71,36 @@ const SyncManager = () => {
         }
     };
 
+    const handleClear = () => {
+        if (window.confirm("¿Seguro que quieres borrar las sesiones pendientes? Los datos locales se perderán permanentemente.")) {
+            SupabaseService.clearSyncQueue();
+            checkQueue();
+        }
+    };
+
     if (pendingCount === 0) return null;
 
     return (
-        <div className="sync-notification glass aurora-border">
-            <div className="sync-info">
-                <RefreshCw size={16} className={syncing ? 'spin-animation' : ''} />
-                <span>Hay {pendingCount} sesión(es) sin sincronizar.</span>
+        <div className="sync-notification glass aurora-border" style={{ flexDirection: 'column', gap: '8px' }}>
+            <div className="sync-info" style={{ width: '100%', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <RefreshCw size={16} className={syncing ? 'spin-animation' : ''} />
+                    <span>{pendingCount} sesión(es) pendientes</span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={handleSync} disabled={syncing} className="btn-sync-mini">
+                        {syncing ? 'Subiendo...' : 'Reintentar'}
+                    </button>
+                    <button onClick={handleClear} className="btn-danger-small" style={{ marginTop: 0, padding: '4px 8px' }}>
+                        Limpiar
+                    </button>
+                </div>
             </div>
-            <button onClick={handleSync} disabled={syncing} className="btn-sync-mini">
-                {syncing ? 'Subiendo...' : 'Subir Ahora'}
-            </button>
+            {lastError && (
+                <div className="sync-error-msg" style={{ fontSize: '0.7rem', color: '#ff8b8b', width: '100%', textAlign: 'left', background: 'rgba(255,0,0,0.1)', padding: '4px 8px', borderRadius: '4px' }}>
+                    <strong>Error:</strong> {lastError}
+                </div>
+            )}
         </div>
     );
 };

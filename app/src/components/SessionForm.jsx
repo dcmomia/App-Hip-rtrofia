@@ -217,21 +217,26 @@ const SessionForm = ({ appState, setAppState }) => {
 
             await SupabaseService.saveSessionLog(log);
 
-            // SUCCESS PATH
+            // SUCCESS PATH (Both Sync and Local Enqueue now use this if safe)
             localStorage.removeItem(`hx_session_draft_${selectedSession.id}`);
-            alert('¡Sesión Guardada y Sincronizada con Éxito!');
+            alert('¡Sesión Guardada con Éxito!');
             setSelectedSession(null);
             setSessionData({});
             navigate('/');
         } catch (error) {
             console.error("Submission Error Details:", error);
 
-            // ERROR PATH - Handle specific errors
-            if (error.message.includes("Sesión expirada")) {
+            if (error.message.includes("Sincronización pendiente")) {
+                // This is actually a 'safety' path now
+                localStorage.removeItem(`hx_session_draft_${selectedSession.id}`);
+                alert(error.message); // Tell user it's local
+                setSelectedSession(null);
+                setSessionData({});
+                navigate('/');
+            } else if (error.message.includes("Sesión expirada")) {
                 alert(`Error: ${error.message}\n\nPor favor, sal al menú principal e inicia sesión de nuevo.`);
             } else {
-                const recoveryMsg = "Tus datos siguen guardados localmente. Intenta guardar de nuevo o revisa tu conexión.";
-                alert(`Error al guardar: ${error.message}\n\n${recoveryMsg}`);
+                alert(`Error crítico al guardar: ${error.message}\n\nIntenta guardar de nuevo o revisa tu conexión.`);
             }
         } finally {
             setIsSubmitting(false);

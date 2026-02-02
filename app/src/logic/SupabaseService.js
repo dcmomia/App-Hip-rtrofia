@@ -53,27 +53,53 @@ export const SupabaseService = {
             throw new Error("No hay datos de entrenamiento para guardar.");
         }
 
-        // 1. Insert Session
-        const { data: sessionData, error: sessionError } = await supabase
+        // 1. Check for existing session (Upsert Logic)
+        const { data: existingSession } = await supabase
             .from('sessions')
-            .insert({
-                user_id: userId,
-                meso_cycle: log.meso,
-                week: log.week,
-                session_name: log.sessionName,
-                soreness: log.feedback.soreness,
-                pump: log.feedback.pump,
-                notes: log.feedback.notes || ''
-            })
-            .select()
-            .single();
+            .select('id')
+            .eq('user_id', userId)
+            .eq('meso_cycle', log.meso)
+            .eq('week', log.week)
+            .eq('session_name', log.sessionName)
+            .maybeSingle();
 
-        if (sessionError) throw sessionError;
+        let sessionId;
+        if (existingSession) {
+            sessionId = existingSession.id;
+            console.log("HX-System: Existing session found, updating ID:", sessionId);
+            const { error: updateError } = await supabase
+                .from('sessions')
+                .update({
+                    soreness: log.feedback.soreness,
+                    pump: log.feedback.pump,
+                    notes: log.feedback.notes || '',
+                    date: new Date().toISOString().split('T')[0]
+                })
+                .eq('id', sessionId);
+
+            if (updateError) throw updateError;
+        } else {
+            // New Session Insert
+            const { data: newSession, error: insertError } = await supabase
+                .from('sessions')
+                .insert({
+                    user_id: userId,
+                    meso_cycle: log.meso,
+                    week: log.week,
+                    session_name: log.sessionName,
+                    soreness: log.feedback.soreness,
+                    pump: log.feedback.pump,
+                    notes: log.feedback.notes || ''
+                })
+                .select()
+                .single();
+
+            if (insertError) throw insertError;
+            sessionId = newSession.id;
+        }
 
         // 2. Prepare Sets
-        const sessionId = sessionData.id;
         const flatSets = [];
-
         Object.keys(log.data).forEach(exerciseId => {
             log.data[exerciseId].forEach((set, index) => {
                 if (set.weight !== '' || set.reps !== '') {
@@ -91,21 +117,20 @@ export const SupabaseService = {
         });
 
         if (flatSets.length === 0) {
-            await supabase.from('sessions').delete().eq('id', sessionId);
+            // If it was a new session and no sets, cleanup (though check is done earlier)
+            if (!existingSession) await supabase.from('sessions').delete().eq('id', sessionId);
             throw new Error("No se detectaron series válidas.");
         }
 
-        // 3. Insert Sets
+        // 3. Overwrite Sets: Delete then Insert
+        await supabase.from('sets').delete().eq('session_id', sessionId);
         const { error: setsError } = await supabase
             .from('sets')
             .insert(flatSets);
 
-        if (setsError) {
-            await supabase.from('sessions').delete().eq('id', sessionId);
-            throw setsError;
-        }
+        if (setsError) throw setsError;
 
-        return sessionData;
+        return { id: sessionId };
     },
 
     /**

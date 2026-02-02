@@ -2,7 +2,7 @@
 import { supabase } from '../lib/supabase';
 
 // Helper to get current user ID
-const getUserId = async () => {
+export const getUserId = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     return user?.id;
 };
@@ -10,76 +10,88 @@ const getUserId = async () => {
 export const SupabaseService = {
     /**
      * Sincroniza el log de una sesión. 
-     * Implementa lógica de "Atomic-ish" con guardado local persistente si falla.
+     * Implementa lógica de "Atomic-ish" con guardado local persistente si falla por RED.
      */
     async saveSessionLog(log) {
         try {
-            const userId = await getUserId();
-            if (!userId) throw new Error("Sesión expirada. Por favor, vuelve a iniciar sesión.");
-
-            if (!log.data || Object.keys(log.data).length === 0) {
-                throw new Error("No hay datos de entrenamiento para guardar.");
-            }
-
-            // 1. Insert Session
-            const { data: sessionData, error: sessionError } = await supabase
-                .from('sessions')
-                .insert({
-                    user_id: userId,
-                    meso_cycle: log.meso,
-                    week: log.week,
-                    session_name: log.sessionName,
-                    soreness: log.feedback.soreness,
-                    pump: log.feedback.pump,
-                    notes: log.feedback.notes || ''
-                })
-                .select()
-                .single();
-
-            if (sessionError) throw sessionError;
-
-            // 2. Prepare Sets
-            const sessionId = sessionData.id;
-            const flatSets = [];
-
-            Object.keys(log.data).forEach(exerciseId => {
-                log.data[exerciseId].forEach((set, index) => {
-                    if (set.weight !== '' || set.reps !== '') {
-                        flatSets.push({
-                            session_id: sessionId,
-                            exercise_name: exerciseId,
-                            weight: parseFloat(set.weight) || 0,
-                            reps: parseInt(set.reps) || 0,
-                            rir: parseInt(set.rir) || 0,
-                            target_rir: 0,
-                            set_order: index
-                        });
-                    }
-                });
-            });
-
-            if (flatSets.length === 0) {
-                await supabase.from('sessions').delete().eq('id', sessionId);
-                throw new Error("No se detectaron series válidas.");
-            }
-
-            // 3. Insert Sets
-            const { error: setsError } = await supabase
-                .from('sets')
-                .insert(flatSets);
-
-            if (setsError) {
-                await supabase.from('sessions').delete().eq('id', sessionId);
-                throw setsError;
-            }
-
-            return sessionData;
+            return await this._executeSave(log);
         } catch (err) {
+            // AUTH CHECK: Si el error es de autenticación, NO encolamos, pedimos login
+            if (err.message.includes("Sesión expirada") || err.status === 401) {
+                throw err;
+            }
+
             console.error("Supabase Sync Failed. Fallback to LocalQueue triggered.", err);
-            // PERSISTENCE GUARD: Si falla la nube, guardamos en una cola local de reintento
+            // PERSISTENCE GUARD: Solo encolamos si es un fallo de red/servidor
             this.queueForRetry(log);
             throw new Error(`Fallo de conexión: Los datos se han guardado localmente y se sincronizarán pronto.`);
         }
+    },
+
+    /**
+     * Lógica interna de guardado para evitar duplicación en la cola.
+     */
+    async _executeSave(log) {
+        const userId = await getUserId();
+        if (!userId) throw new Error("Sesión expirada. Por favor, vuelve a iniciar sesión.");
+
+        if (!log.data || Object.keys(log.data).length === 0) {
+            throw new Error("No hay datos de entrenamiento para guardar.");
+        }
+
+        // 1. Insert Session
+        const { data: sessionData, error: sessionError } = await supabase
+            .from('sessions')
+            .insert({
+                user_id: userId,
+                meso_cycle: log.meso,
+                week: log.week,
+                session_name: log.sessionName,
+                soreness: log.feedback.soreness,
+                pump: log.feedback.pump,
+                notes: log.feedback.notes || ''
+            })
+            .select()
+            .single();
+
+        if (sessionError) throw sessionError;
+
+        // 2. Prepare Sets
+        const sessionId = sessionData.id;
+        const flatSets = [];
+
+        Object.keys(log.data).forEach(exerciseId => {
+            log.data[exerciseId].forEach((set, index) => {
+                if (set.weight !== '' || set.reps !== '') {
+                    flatSets.push({
+                        session_id: sessionId,
+                        exercise_name: exerciseId,
+                        weight: parseFloat(set.weight) || 0,
+                        reps: parseInt(set.reps) || 0,
+                        rir: parseInt(set.rir) || 0,
+                        target_rir: 0,
+                        set_order: index
+                    });
+                }
+            });
+        });
+
+        if (flatSets.length === 0) {
+            await supabase.from('sessions').delete().eq('id', sessionId);
+            throw new Error("No se detectaron series válidas.");
+        }
+
+        // 3. Insert Sets
+        const { error: setsError } = await supabase
+            .from('sets')
+            .insert(flatSets);
+
+        if (setsError) {
+            await supabase.from('sessions').delete().eq('id', sessionId);
+            throw setsError;
+        }
+
+        return sessionData;
     },
 
     /**
@@ -103,11 +115,13 @@ export const SupabaseService = {
 
         for (const log of queue) {
             try {
-                await this.saveSessionLog(log);
+                // USAMOS _executeSave para no volver a encolar lo que ya está en cola si falla
+                await this._executeSave(log);
                 console.log(`HX-System: Successfully synced session: ${log.sessionName}`);
             } catch (e) {
+                console.warn(`HX-System: Sync failed for ${log.sessionName}. Reason:`, e.message);
                 if (log.retryCount < 5) {
-                    remainingQueue.push({ ...log, retryCount: log.retryCount + 1 });
+                    remainingQueue.push({ ...log, retryCount: (log.retryCount || 0) + 1 });
                 }
             }
         }

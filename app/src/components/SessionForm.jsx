@@ -226,9 +226,13 @@ const SessionForm = ({ appState, setAppState }) => {
         } catch (error) {
             console.error("Submission Error Details:", error);
 
-            // ERROR PATH - Don't lose data
-            const recoveryMsg = "Tus datos siguen guardados localmente. Intenta guardar de nuevo o revisa tu conexión.";
-            alert(`Error al guardar: ${error.message}\n\n${recoveryMsg}`);
+            // ERROR PATH - Handle specific errors
+            if (error.message.includes("Sesión expirada")) {
+                alert(`Error: ${error.message}\n\nPor favor, sal al menú principal e inicia sesión de nuevo.`);
+            } else {
+                const recoveryMsg = "Tus datos siguen guardados localmente. Intenta guardar de nuevo o revisa tu conexión.";
+                alert(`Error al guardar: ${error.message}\n\n${recoveryMsg}`);
+            }
         } finally {
             setIsSubmitting(false);
         }

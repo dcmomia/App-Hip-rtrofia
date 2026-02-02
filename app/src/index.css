@@ -784,3 +784,60 @@ input[type="range"] {
         grid-template-columns: repeat(2, 1fr);
     }
 }
+
+/* Sync Notification */
+.sync-notification {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem 1.2rem;
+    margin: 1.5rem 0;
+    background: rgba(0, 212, 255, 0.05);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    border-radius: 16px;
+    animation: fadeInSlide 0.5s ease-out;
+}
+
+.sync-info {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 0.85rem;
+    color: var(--accent-color);
+}
+
+.btn-sync-mini {
+    background: var(--accent-gradient);
+    border: none;
+    border-radius: 8px;
+    padding: 0.4rem 0.8rem;
+    color: #000;
+    font-weight: 700;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-sync-mini:hover:not(:disabled) {
+    transform: scale(1.05);
+    filter: brightness(1.2);
+}
+
+.btn-sync-mini:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.spin-animation {
+    animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.aurora-border {
+    position: relative;
+    overflow: hidden;
+}

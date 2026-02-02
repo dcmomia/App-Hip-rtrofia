@@ -82,18 +82,30 @@ const SessionForm = ({ appState, setAppState }) => {
         };
 
         const fetchExerciseHistory = async () => {
-            const history = {};
-            for (const ex of selectedSession.exercises) {
-                const last = await SupabaseService.getLastExercisePerformance(ex.id);
-                if (last) history[ex.id] = last;
-
-                // Important: Don't overwrite if it already exists (from restoration)
-                setExerciseMetadata(prev => {
-                    if (prev[ex.id]) return prev;
-                    return { ...prev, [ex.id]: { tempo_ok: false, sfr: 3 } };
+            console.log("HX-System: Fetching history for session exercises...");
+            try {
+                const historyPromises = selectedSession.exercises.map(async (ex) => {
+                    const last = await SupabaseService.getLastExercisePerformance(ex.id);
+                    return { id: ex.id, last };
                 });
+
+                const results = await Promise.all(historyPromises);
+                const history = {};
+                const newMetadata = { ...exerciseMetadata };
+
+                results.forEach(({ id, last }) => {
+                    if (last) history[id] = last;
+                    if (!newMetadata[id]) {
+                        newMetadata[id] = { tempo_ok: false, sfr: 3 };
+                    }
+                });
+
+                setExerciseHistory(history);
+                setExerciseMetadata(newMetadata);
+                console.log(`HX-System: History loaded for ${Object.keys(history).length} exercises`);
+            } catch (err) {
+                console.error("HX-System: Failure in fetchExerciseHistory", err);
             }
-            setExerciseHistory(history);
         };
 
         fetchFeedback();

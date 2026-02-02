@@ -159,40 +159,57 @@ export const SupabaseService = {
     },
 
     /**
-     * Obtiene el historial de sesiones.
+     * Obtiene el historial de sesiones del usuario actual.
      */
     async getSessionLogs() {
         try {
+            const userId = await getUserId();
+            if (!userId) return [];
+
             const { data, error } = await supabase
                 .from('sessions')
                 .select('*, sets (*)')
+                .eq('user_id', userId)
                 .order('date', { ascending: false });
 
             if (error) throw error;
+            console.log(`HX-System: Fetched ${data.length} sessions for user ${userId}`);
             return data || [];
         } catch (err) {
+            console.error("Error getSessionLogs:", err);
             throw new Error("Error al obtener historial.");
         }
     },
 
     /**
-     * Obtiene el último rendimiento de un ejercicio.
+     * Obtiene el último rendimiento de un ejercicio específico.
      */
     async getLastExercisePerformance(exerciseName) {
         try {
             const userId = await getUserId();
             if (!userId) return null;
 
+            // Correct ordering: foreignTable for joined columns
             const { data, error } = await supabase
                 .from('sets')
                 .select('weight, reps, rir, sessions!inner(user_id, date)')
                 .eq('exercise_name', exerciseName)
                 .eq('sessions.user_id', userId)
-                .order('sessions(date)', { ascending: false })
+                .order('date', { foreignTable: 'sessions', ascending: false })
                 .limit(1);
 
-            return data?.[0] || null;
+            if (error) {
+                console.error(`Error fetching history for ${exerciseName}:`, error);
+                return null;
+            }
+
+            const last = data?.[0];
+            if (last) {
+                console.log(`HX-System: Last perf for ${exerciseName}: ${last.weight}kg x ${last.reps}`);
+            }
+            return last || null;
         } catch (err) {
+            console.error(`Exception in getLastExercisePerformance for ${exerciseName}:`, err);
             return null;
         }
     }

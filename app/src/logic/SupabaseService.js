@@ -53,16 +53,20 @@ export const SupabaseService = {
             throw new Error("No hay datos de entrenamiento para guardar.");
         }
 
-        // 1. Check for existing session (Upsert Logic)
-        const { data: existingSession } = await supabase
+        // 1. Check for existing session (Upsert Logic - pick most recent if dupe exists)
+        const { data: maybeExisting, error: checkError } = await supabase
             .from('sessions')
             .select('id')
             .eq('user_id', userId)
             .eq('meso_cycle', log.meso)
             .eq('week', log.week)
             .eq('session_name', log.sessionName)
-            .maybeSingle();
+            .order('created_at', { ascending: false })
+            .limit(1);
 
+        if (checkError) console.error("HX-System: Error in deduplication check:", checkError);
+
+        const existingSession = maybeExisting?.[0];
         let sessionId;
         if (existingSession) {
             sessionId = existingSession.id;
@@ -199,15 +203,17 @@ export const SupabaseService = {
                 .eq('meso_cycle', meso)
                 .eq('week', week)
                 .eq('session_name', sessionName)
-                .single();
+                .order('created_at', { ascending: false })
+                .limit(1);
 
             if (error) {
-                if (error.code === 'PGRST116') return null; // Not found is fine
+                console.error("HX-System: Error fetching session details:", error);
                 throw error;
             }
-            return data;
+
+            return data?.[0] || null;
         } catch (err) {
-            console.error("Error fetching session details:", err);
+            console.error("HX-System: Exception in getSessionDetails:", err);
             return null;
         }
     },

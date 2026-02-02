@@ -833,11 +833,33 @@ input[type="range"] {
 }
 
 @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .aurora-border {
     position: relative;
     overflow: hidden;
+}
+
+.alert-info {
+    border-left: 4px solid var(--accent-color);
+    background: rgba(0, 243, 255, 0.05) !important;
+}
+
+.read-only-view input:disabled {
+    background: transparent !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: var(--text-secondary) !important;
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+.read-only-view .recommendation-overlay {
+    display: none;
 }

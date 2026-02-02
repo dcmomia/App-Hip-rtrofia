@@ -138,11 +138,13 @@ const SessionForm = ({ appState, setAppState }) => {
             console.log("HX-System: Checking cloud for historical session data...");
             const cloudSession = await SupabaseService.getSessionDetails(appState.meso, appState.week, s.name);
 
-            if (cloudSession && cloudSession.sets && cloudSession.sets.length > 0) {
+            if (cloudSession) {
                 console.log("HX-System: Historical data found in Cloud for", s.name);
+                const cloudSets = cloudSession.sets || [];
+
                 // Map flat sets back to ex.id arrays
                 s.exercises.forEach(ex => {
-                    const exSets = cloudSession.sets.filter(set => set.exercise_name === ex.id)
+                    const exSets = cloudSets.filter(set => set.exercise_name === ex.id)
                         .sort((a, b) => a.set_order - b.set_order);
 
                     if (exSets.length > 0) {
@@ -152,6 +154,7 @@ const SessionForm = ({ appState, setAppState }) => {
                             rir: set.rir
                         }));
                     } else {
+                        // Fill with defaults if no sets found in record
                         dataToSet[ex.id] = Array.from({ length: ex.sets }, () => ({
                             weight: '', reps: '', rir: ex.rir
                         }));
@@ -159,12 +162,12 @@ const SessionForm = ({ appState, setAppState }) => {
                     metadataToSet[ex.id] = { tempo_ok: true, sfr: 3 };
                 });
                 feedbackToSet = {
-                    soreness: cloudSession.soreness,
-                    pump: cloudSession.pump,
+                    soreness: cloudSession.soreness || 0,
+                    pump: cloudSession.pump || 0,
                     fatigue: 3,
                     notes: cloudSession.notes || ''
                 };
-                editMode = false; // Start in read-only for historical data
+                editMode = false; // Locked by default since it exists in cloud
             } else {
                 // Priority 3: Initialize new blank session
                 console.log("HX-System: Initializing new blank session data", s.id);

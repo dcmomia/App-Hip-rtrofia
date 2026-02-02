@@ -144,11 +144,26 @@ const SessionForm = ({ appState, setAppState }) => {
 
                 // Map flat sets back to ex.id arrays
                 s.exercises.forEach(ex => {
-                    const exSets = cloudSets.filter(set => set.exercise_name === ex.id)
-                        .sort((a, b) => a.set_order - b.set_order);
+                    const exSets = cloudSets.filter(set => set.exercise_name === ex.id);
 
-                    if (exSets.length > 0) {
-                        dataToSet[ex.id] = exSets.map(set => ({
+                    // NEW: Deduplicate by set_order (prioritize higher weight found in pairs)
+                    const uniqueSetsMap = {};
+                    exSets.forEach(set => {
+                        const existing = uniqueSetsMap[set.set_order];
+                        if (!existing || (set.weight > existing.weight)) {
+                            uniqueSetsMap[set.set_order] = set;
+                        }
+                    });
+
+                    let finalSets = Object.values(uniqueSetsMap).sort((a, b) => a.set_order - b.set_order);
+
+                    // Safety Cap: Don't exceed target sets from program
+                    if (finalSets.length > ex.sets) {
+                        finalSets = finalSets.slice(0, ex.sets);
+                    }
+
+                    if (finalSets.length > 0) {
+                        dataToSet[ex.id] = finalSets.map(set => ({
                             weight: set.weight,
                             reps: set.reps,
                             rir: set.rir

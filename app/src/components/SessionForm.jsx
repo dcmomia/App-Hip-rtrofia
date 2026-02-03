@@ -144,10 +144,12 @@ const SessionForm = ({ appState, setAppState }) => {
                 const cloudSets = cloudSession.sets || [];
 
                 // Map flat sets back to ex.id arrays
+                const normalize = (val) => val ? String(val).toLowerCase().trim() : '';
+
                 s.exercises.forEach(ex => {
                     const exSets = cloudSets.filter(set =>
-                        set.exercise_name === ex.id ||
-                        set.exercise_name === ex.name
+                        normalize(set.exercise_name) === normalize(ex.id) ||
+                        normalize(set.exercise_name) === normalize(ex.name)
                     );
 
                     // NEW: Deduplicate by set_order (prioritize higher weight found in pairs)

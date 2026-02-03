@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Plus, Minus } from 'lucide-react';
 import { calculateNextLoad, calculateVolumeAdjust, getRealTimeRecommendation, detectDeloadNeeded } from '../logic/IsraetelEngine';
 import { PROGRAM_DATA } from '../data/programData';
 import { getSessionDraft, saveSessionDraft } from '../logic/Storage'; // Keep drafts local for safety
@@ -245,6 +246,31 @@ const SessionForm = ({ appState, setAppState }) => {
         setPostSession(prev => ({ ...prev, [field]: value }));
     };
 
+    const handleAddSet = (exerciseId) => {
+        setSessionData(prev => {
+            const currentSets = prev[exerciseId] || [];
+            // Default to RIR from exercise definition
+            const exDef = selectedSession.exercises.find(e => e.id === exerciseId);
+            const newSet = { weight: '', reps: '', rir: exDef?.rir || 0 };
+            return {
+                ...prev,
+                [exerciseId]: [...currentSets, newSet]
+            };
+        });
+    };
+
+    const handleRemoveSet = (exerciseId) => {
+        setSessionData(prev => {
+            const currentSets = prev[exerciseId] || [];
+            if (currentSets.length === 0) return prev;
+            return {
+                ...prev,
+                [exerciseId]: currentSets.slice(0, currentSets.length - 1)
+            };
+        });
+    };
+
+
 
     const isSessionComplete = () => {
         if (!selectedSession || !sessionData) return false;
@@ -399,6 +425,28 @@ const SessionForm = ({ appState, setAppState }) => {
                                 )}
                             </div>
                             <span className="target-badge">{ex.sets}x{ex.reps} (RIR {ex.rir})</span>
+                            {isEditMode && (
+                                <div className="set-controls" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleAddSet(ex.id)}
+                                        className="btn-sync-mini"
+                                        style={{ padding: '2px 6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                        title="Añadir Serie"
+                                    >
+                                        <Plus size={14} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRemoveSet(ex.id)}
+                                        className="btn-sync-mini"
+                                        style={{ padding: '2px 6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                        title="Quitar Serie"
+                                    >
+                                        <Minus size={14} />
+                                    </button>
+                                </div>
+                            )}
                         </header>
 
 

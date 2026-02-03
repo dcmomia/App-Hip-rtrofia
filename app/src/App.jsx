@@ -156,7 +156,25 @@ function App() {
         const updated = { ...appState, ...newState };
         setAppState(updated);
         updateAppState(updated);
+        // Sync to cloud
+        SupabaseService.updateAppState(updated);
     };
+
+    // Sync State from Cloud on Mount (if auth)
+    useEffect(() => {
+        const syncRemoteState = async () => {
+            const remote = await SupabaseService.getAppState();
+            if (remote) {
+                console.log("HX-System: Found remote state, syncing...", remote);
+                const newState = { meso: remote.meso_cycle, week: remote.week };
+                // Update local only if different? For now just overwrite to ensure sync.
+                setAppState(prev => ({ ...prev, ...newState }));
+                updateAppState({ ...appState, ...newState });
+            }
+        };
+        // We could verify auth first or let service handle it
+        syncRemoteState();
+    }, []);
 
     return (
         <ErrorBoundary>

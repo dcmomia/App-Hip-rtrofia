@@ -272,6 +272,56 @@ export const SupabaseService = {
             console.error(`Exception in getLastExercisePerformance for ${exerciseName}:`, err);
             return null;
         }
+    },
+
+    /**
+     * Obtiene el estado global de la APP (Meso/Semana)
+     */
+    async getAppState() {
+        try {
+            const userId = await getUserId();
+            if (!userId) return null;
+            const { data, error } = await supabase
+                .from('user_state')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
+            if (error) {
+                console.warn("HX-System: Could not fetch user_state (may not exist yet)", error.message);
+                return null;
+            }
+            return data;
+        } catch (e) {
+            console.error("HX-System: Exception in getAppState", e);
+            return null;
+        }
+    },
+
+    /**
+     * Actualiza el estado global de la APP
+     */
+    async updateAppState(state) {
+        try {
+            const userId = await getUserId();
+            if (!userId) return;
+
+            // state contains { meso, week }
+            const payload = {
+                user_id: userId,
+                meso_cycle: state.meso,
+                week: state.week,
+                updated_at: new Date().toISOString()
+            };
+
+            const { error } = await supabase
+                .from('user_state')
+                .upsert(payload);
+
+            if (error) console.error("HX-System: Error syncing app state", error);
+            else console.log("HX-System: App State Synced to Cloud");
+        } catch (e) {
+            console.error("HX-System: Exception in updateAppState", e);
+        }
     }
 };
 

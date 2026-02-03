@@ -57,14 +57,12 @@ Cuando el usuario abra una nueva conversación:
 
 ## 5. Historial de Versiones (Patch Notes)
 
-### [v2.7.0] - 03 de Febrero de 2026
-**Estructura Maestro-Arquitecto (Post-NotebookLM)**
-- **Decoupled Architecture:** Migración del contexto técnico a `specs.md` y guías visuales a `design.md`.
-- **Agent Governance:** Inicialización de reglas de espacio de trabajo en `.agent/rules/workspace.md` para mejorar la autonomía del agente.
-- **Structural Optimization:** Limpieza del directorio raíz, moviendo respaldos a `archives/`.
-- **Baseline Alignment:** Ejecución completa del workflow `workflow_architect` para certificar la integridad del entorno.
+### [v2.7.2] - 03 de Febrero de 2026
+**Integridad de Datos y Dashboard**
+- **v2.7.1**: Solucionado bug crítico de duplicación de series por falta de RLS. Implementadas políticas de `UPDATE` y `DELETE`. Deduplicación de datos.
+- **v2.7.2**: Corregida persistencia de fecha original en ediciones. Solucionado bug de visualización en modo lectura priorizando Cloud + Normalización.
 
 ---
-*Documento actualizado con Estructura Maestro-Arquitecto (v2.7.0). Última revisión: 03 de Febrero de 2026 (06:50).*
+*Documento actualizado con Parches de Integridad (v2.7.2). Última revisión: 03 de Febrero de 2026 (07:45).*
 
 

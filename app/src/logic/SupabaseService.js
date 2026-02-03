@@ -85,8 +85,7 @@ export const SupabaseService = {
                 .update({
                     soreness: log.feedback.soreness,
                     pump: log.feedback.pump,
-                    notes: log.feedback.notes || '',
-                    date: new Date().toISOString().split('T')[0]
+                    notes: log.feedback.notes || ''
                 })
                 .eq('id', sessionId);
 

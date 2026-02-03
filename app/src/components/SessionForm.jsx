@@ -145,7 +145,10 @@ const SessionForm = ({ appState, setAppState }) => {
 
                 // Map flat sets back to ex.id arrays
                 s.exercises.forEach(ex => {
-                    const exSets = cloudSets.filter(set => set.exercise_name === ex.id);
+                    const exSets = cloudSets.filter(set =>
+                        set.exercise_name === ex.id ||
+                        set.exercise_name === ex.name
+                    );
 
                     // NEW: Deduplicate by set_order (prioritize higher weight found in pairs)
                     const uniqueSetsMap = {};

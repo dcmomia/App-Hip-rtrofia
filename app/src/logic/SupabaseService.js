@@ -49,8 +49,16 @@ export const SupabaseService = {
         const userId = await getUserId();
         if (!userId) throw new Error("Sesión expirada. Por favor, vuelve a iniciar sesión.");
 
-        if (!log.data || Object.keys(log.data).length === 0) {
-            throw new Error("No hay datos de entrenamiento para guardar.");
+        // 0. Resolve Exercises Mapping (Fetch all to Map Name -> UUID)
+        const { data: dbExercises, error: exError } = await supabase
+            .from('exercises')
+            .select('id, name');
+
+        let exerciseMap = new Map();
+        if (!exError && dbExercises) {
+            exerciseMap = new Map(dbExercises.map(e => [e.name, e.id]));
+        } else {
+            console.warn("HX-System: Could not fetch exercises table.", exError);
         }
 
         // 1. Check for existing session (Upsert Logic - pick most recent if dupe exists)
@@ -71,6 +79,7 @@ export const SupabaseService = {
         if (existingSession) {
             sessionId = existingSession.id;
             console.log("HX-System: Existing session found, updating ID:", sessionId);
+            // Update Session details
             const { error: updateError } = await supabase
                 .from('sessions')
                 .update({
@@ -81,7 +90,10 @@ export const SupabaseService = {
                 })
                 .eq('id', sessionId);
 
-            if (updateError) throw updateError;
+            if (updateError) {
+                console.error("HX-System: Failed to update session (check RLS):", updateError);
+                throw new Error("No tienes permisos para actualizar esta sesión o error de DB.");
+            }
         } else {
             // New Session Insert
             const { data: newSession, error: insertError } = await supabase
@@ -104,26 +116,53 @@ export const SupabaseService = {
 
         // 2. Prepare Sets
         const flatSets = [];
-        Object.keys(log.data).forEach(exerciseId => {
-            log.data[exerciseId].forEach((set, index) => {
-                if (set.weight !== '' || set.reps !== '') {
-                    flatSets.push({
-                        session_id: sessionId,
-                        exercise_name: exerciseId,
-                        weight: parseFloat(set.weight) || 0,
-                        reps: parseInt(set.reps) || 0,
-                        rir: parseInt(set.rir) || 0,
-                        target_rir: 0,
-                        set_order: index
-                    });
-                }
+
+        // NEW FORMAT: log.exercises (Array)
+        if (log.exercises && Array.isArray(log.exercises)) {
+            log.exercises.forEach(exData => {
+                const dbId = exerciseMap.get(exData.name); // Resolve UUID
+
+                exData.sets.forEach((set, index) => {
+                    if (set.weight !== '' || set.reps !== '') {
+                        flatSets.push({
+                            session_id: sessionId,
+                            exercise_id: dbId || null, // UUID or null if not found
+                            exercise_name: exData.name, // Text fallback
+                            weight: parseFloat(set.weight) || 0,
+                            reps: parseInt(set.reps) || 0,
+                            rir: parseInt(set.rir) || 0,
+                            set_order: index,
+                            is_warmup: false
+                        });
+                    }
+                });
             });
-        });
+        }
+        // OLD FORMAT OR FALLBACK: log.data
+        else if (log.data) {
+            console.warn("HX-System: Processing legacy log format.");
+            Object.keys(log.data).forEach(exerciseId => {
+                log.data[exerciseId].forEach((set, index) => {
+                    if (set.weight !== '' || set.reps !== '') {
+                        flatSets.push({
+                            session_id: sessionId,
+                            exercise_name: exerciseId, // Will be "t1", sadly.
+                            exercise_id: null,
+                            weight: parseFloat(set.weight) || 0,
+                            reps: parseInt(set.reps) || 0,
+                            rir: parseInt(set.rir) || 0,
+                            target_rir: 0, // Legacy field
+                            set_order: index
+                        });
+                    }
+                });
+            });
+        }
 
         if (flatSets.length === 0) {
             // If it was a new session and no sets, cleanup (though check is done earlier)
             if (!existingSession) await supabase.from('sessions').delete().eq('id', sessionId);
-            throw new Error("No se detectaron series válidas.");
+            throw new Error("No se detectaron series válidas (o formato incorrecto).");
         }
 
         // 3. Overwrite Sets: Delete then Insert
@@ -132,7 +171,10 @@ export const SupabaseService = {
             .from('sets')
             .insert(flatSets);
 
-        if (setsError) throw setsError;
+        if (setsError) {
+            console.error("HX-System: Failed to insert new sets (check RLS):", setsError);
+            throw new Error("Error al guardar las series de la sesión.");
+        }
 
         return { id: sessionId };
     },

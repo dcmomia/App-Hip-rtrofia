@@ -305,8 +305,14 @@ const SessionForm = ({ appState, setAppState }) => {
                 week: appState.week,
                 sessionId: selectedSession.id,
                 sessionName: selectedSession.name,
-                data: sessionData,
-                metadata: exerciseMetadata,
+                // Refactored: Send explicit exercises array with Names for DB Mapping
+                timestamp: new Date().toISOString(),
+                exercises: selectedSession.exercises.map(ex => ({
+                    name: ex.name, // "Press Máquina Convergente"
+                    internalId: ex.id,
+                    sets: sessionData[ex.id] || [],
+                    metadata: exerciseMetadata[ex.id] || {}
+                })),
                 feedback: postSession
             };
 

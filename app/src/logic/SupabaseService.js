@@ -241,8 +241,8 @@ export const SupabaseService = {
                 .from('sessions')
                 .select('*, sets (*)')
                 .eq('user_id', userId)
-                .eq('meso_cycle', meso)
-                .eq('week', week)
+                .eq('meso_cycle', Number(meso))
+                .eq('week', Number(week))
                 .eq('session_name', sessionName)
                 .order('created_at', { ascending: false })
                 .limit(1);

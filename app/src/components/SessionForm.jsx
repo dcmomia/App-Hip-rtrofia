@@ -120,30 +120,21 @@ const SessionForm = ({ appState, setAppState }) => {
     const availableSessions = currentMeso ? currentMeso.sessions : [];
 
     const handleSelectSession = async (s) => {
-        const draft = getSessionDraft(s.id);
-
         let dataToSet = {};
         let metadataToSet = {};
         let feedbackToSet = { soreness: 0, pump: 0, fatigue: 3, notes: '' };
         let editMode = false;
 
-        // Priority 1: Check for existing local draft (active work)
-        if (draft && draft.meso === appState.meso && draft.week === appState.week) {
-            console.log("HX-System: Draft match found for session", s.id);
-            dataToSet = draft.data;
-            metadataToSet = draft.metadata || {};
-            feedbackToSet = draft.feedback || feedbackToSet;
-            editMode = true; // Still working on it
-        } else {
-            // Priority 2: Check Supabase for historical matched session
+        console.log(`HX-System: Selecting session ${s.name} (M:${appState.meso} W:${appState.week})`);
+
+        try {
+            // Priority 1: Check Supabase for finalized session
             console.log("HX-System: Checking cloud for historical session data...");
             const cloudSession = await SupabaseService.getSessionDetails(appState.meso, appState.week, s.name);
 
             if (cloudSession) {
-                console.log("HX-System: Historical data found in Cloud for", s.name);
+                console.log("HX-System: Historical data found in Cloud. Sets count:", cloudSession.sets?.length);
                 const cloudSets = cloudSession.sets || [];
-
-                // Map flat sets back to ex.id arrays
                 const normalize = (val) => val ? String(val).toLowerCase().trim() : '';
 
                 s.exercises.forEach(ex => {
@@ -152,7 +143,6 @@ const SessionForm = ({ appState, setAppState }) => {
                         normalize(set.exercise_name) === normalize(ex.name)
                     );
 
-                    // NEW: Deduplicate by set_order (prioritize higher weight found in pairs)
                     const uniqueSetsMap = {};
                     exSets.forEach(set => {
                         const existing = uniqueSetsMap[set.set_order];
@@ -162,11 +152,7 @@ const SessionForm = ({ appState, setAppState }) => {
                     });
 
                     let finalSets = Object.values(uniqueSetsMap).sort((a, b) => a.set_order - b.set_order);
-
-                    // Safety Cap: Don't exceed target sets from program
-                    if (finalSets.length > ex.sets) {
-                        finalSets = finalSets.slice(0, ex.sets);
-                    }
+                    if (finalSets.length > ex.sets) finalSets = finalSets.slice(0, ex.sets);
 
                     if (finalSets.length > 0) {
                         dataToSet[ex.id] = finalSets.map(set => ({
@@ -175,33 +161,43 @@ const SessionForm = ({ appState, setAppState }) => {
                             rir: set.rir
                         }));
                     } else {
-                        // Fill with defaults if no sets found in record
                         dataToSet[ex.id] = Array.from({ length: ex.sets }, () => ({
                             weight: '', reps: '', rir: ex.rir
                         }));
                     }
                     metadataToSet[ex.id] = { tempo_ok: true, sfr: 3 };
                 });
+
                 feedbackToSet = {
                     soreness: cloudSession.soreness || 0,
                     pump: cloudSession.pump || 0,
                     fatigue: 3,
                     notes: cloudSession.notes || ''
                 };
-                editMode = false; // Locked by default since it exists in cloud
+                editMode = false; // Locked by default
             } else {
-                // Priority 3: Initialize new blank session
-                console.log("HX-System: Initializing new blank session data", s.id);
-                s.exercises.forEach(ex => {
-                    dataToSet[ex.id] = Array.from({ length: ex.sets }, () => ({
-                        weight: '',
-                        reps: '',
-                        rir: ex.rir
-                    }));
-                    metadataToSet[ex.id] = { tempo_ok: false, sfr: 3 };
-                });
-                editMode = true; // New session is editable by default
+                // Priority 2: Check for local draft (active work)
+                const draft = getSessionDraft(s.id);
+                if (draft && draft.meso === appState.meso && draft.week === appState.week) {
+                    console.log("HX-System: No cloud session found, but local draft matches.");
+                    dataToSet = draft.data;
+                    metadataToSet = draft.metadata || {};
+                    feedbackToSet = draft.feedback || feedbackToSet;
+                    editMode = true;
+                } else {
+                    // Priority 3: Initialize blank
+                    console.log("HX-System: No cloud data or matching draft. Initializing blank.");
+                    s.exercises.forEach(ex => {
+                        dataToSet[ex.id] = Array.from({ length: ex.sets }, () => ({
+                            weight: '', reps: '', rir: ex.rir
+                        }));
+                        metadataToSet[ex.id] = { tempo_ok: false, sfr: 3 };
+                    });
+                    editMode = true;
+                }
             }
+        } catch (err) {
+            console.error("HX-System: Critical failure in handleSelectSession", err);
         }
 
         setSessionData(dataToSet);
